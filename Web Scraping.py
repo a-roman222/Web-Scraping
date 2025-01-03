@@ -10,41 +10,39 @@ class ColourHTMLParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.colours = {}
-        self.in_color_name = False
-        self.in_hex_value = False
         self.current_color_name = None
+        self.is_color_name = False
+        self.is_hex_value = False
 
     def handle_starttag(self, tag, attrs):
-        if tag == 'a':
-            for attr in attrs:
-                if attr[0] == 'class' and ('tw' in attr[1] or 'tb' in attr[1]):
-                    self.in_color_name = True
-        elif tag == 'td' and not self.in_color_name:
-            self.in_hex_value = True
+        attrs = dict(attrs)
+        if tag == 'a' and 'class' in attrs and ('tw' in attrs['class'] or 'tb' in attrs['class']):
+            self.is_color_name = True
+        elif tag == 'td' and not self.is_color_name:
+            self.is_hex_value = True
 
     def handle_endtag(self, tag):
-        if tag == 'a' and self.in_color_name:
-            self.in_color_name = False
-        elif tag == 'td' and self.in_hex_value:
-            self.in_hex_value = False
+        if tag == 'a':
+            self.is_color_name = False
+        elif tag == 'td':
+            self.is_hex_value = False
 
     def handle_data(self, data):
-        if self.in_color_name:
+        if self.is_color_name:
             self.current_color_name = data.strip()
-        elif self.in_hex_value and self.current_color_name:
-            hex_value = data.strip()
-            self.colours[self.current_color_name] = hex_value
+        elif self.is_hex_value and self.current_color_name:
+            self.colours[self.current_color_name] = data.strip()
             self.current_color_name = None
 
-parser = ColourHTMLParser()
+if __name__ == "__main__":
+    parser = ColourHTMLParser()
 
-with urllib.request.urlopen('https://www.colorhexa.com/color-names') as response:
-    html = response.read().decode('utf-8')
+    # Fetch and parse the HTML content
+    with urllib.request.urlopen('https://www.colorhexa.com/color-names') as response:
+        parser.feed(response.read().decode('utf-8'))
 
-parser.feed(html)
+    # Print the results
+    for name, hex_value in parser.colours.items():
+        print(f"{name} {hex_value}")
 
-for name, hex_value in parser.colours.items():
-    print(f"{name} {hex_value}")
-
-# Print the total count of colors
-print(f"\nTotal colors #: {len(parser.colours)}")
+    print(f"\nTotal colors #: {len(parser.colours)}")
